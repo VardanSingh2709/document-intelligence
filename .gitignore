@@ -1,0 +1,26 @@
+# Virtual environment
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Secrets (never commit these; .env.example IS allowed)
+.env
+
+# Datasets and trained models (large, reproducible)
+/data/
+/models/
+*.pt
+*.safetensors
+*.ckpt
+
+# Experiment tracking output
+mlruns/
+
+# Editor and OS files
+.vscode/
+Thumbs.db
