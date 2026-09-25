@@ -12,7 +12,8 @@ __pycache__/
 .env
 
 # Datasets and trained models (large, reproducible)
-/data/
+/data/*
+!/data/README.md
 /models/
 *.pt
 *.safetensors
