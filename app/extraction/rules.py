@@ -61,3 +61,38 @@ def _clean_money(raw: str) -> str:
     """Strip currency symbols/codes and thousands separators, keeping just digits and the decimal point."""
     cleaned = re.sub(r"[^\d.]", "", raw)
     return cleaned
+
+
+# --- COMPANY & ADDRESS ---
+# Purely positional heuristics: unlike date/total, company names and addresses
+# have no consistent textual shape, so we rely on where they typically sit on
+# a receipt (top of the document) rather than what they contain.
+ADDRESS_STOP_MARKERS = ["tel", "fax", "invoice", "receipt", "gst", "www", "email"]
+
+
+KNOWN_HEADER_ARTIFACT = "tan woon yann"  # a non-company line appearing first on nearly every SROIE receipt
+
+
+def extract_company(lines: list[str]) -> str | None:
+    """Assume the company name is the first non-empty line, skipping a known
+    dataset artifact ("TAN WOON YANN") that appears as line 0 on most receipts
+    regardless of actual vendor (discovered via evaluation, see phase4_baseline.md)."""
+    for line in lines:
+        stripped = line.strip()
+        if stripped and stripped.lower() != KNOWN_HEADER_ARTIFACT:
+            return stripped
+    return None
+
+
+def extract_address(lines: list[str]) -> str | None:
+    """Assume the address follows immediately after the company line (line 0),
+    continuing until a stop marker (phone, invoice label, etc.) appears."""
+    address_lines = []
+    for line in lines[1:5]:  # look at up to 4 lines after the company line
+        lowered = line.lower()
+        if any(marker in lowered for marker in ADDRESS_STOP_MARKERS):
+            break
+        if DATE_PATTERN.search(line):
+            break
+        address_lines.append(line.strip())
+    return " ".join(address_lines) if address_lines else None
