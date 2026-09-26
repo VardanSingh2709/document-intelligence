@@ -1,0 +1,5 @@
+paddlepaddle==2.6.2
+paddleocr==2.9.1
+setuptools  # required by paddlepaddle on Python 3.12+; not bundled in venv by default
+jiwer==3.0.4
+pytesseract==0.3.13
