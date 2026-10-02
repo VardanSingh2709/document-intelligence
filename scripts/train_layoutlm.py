@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 from seqeval.metrics import f1_score, precision_score, recall_score
 from transformers import (
+    EarlyStoppingCallback,
     LayoutLMv3ForTokenClassification,
     LayoutLMv3Processor,
     Trainer,
@@ -105,6 +106,7 @@ def main() -> None:
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         compute_metrics=compute_metrics,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
     )
 
     print("Starting training...")
