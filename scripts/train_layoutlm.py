@@ -114,6 +114,7 @@ def main() -> None:
 
     print(f"\nSaving final model to {output_dir}")
     trainer.save_model(str(output_dir))
+    processor.save_pretrained(str(output_dir))
 
 
 if __name__ == "__main__":
