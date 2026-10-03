@@ -38,7 +38,8 @@ def main() -> None:
 
     print(f"\n=== {receipt_id} ===")
     for field in ["COMPANY", "DATE", "ADDRESS", "TOTAL"]:
-        print(f"{field:10} predicted={predicted[field]!r}")
+        pred = predicted[field]
+        print(f"{field:10} predicted={pred['value']!r}  confidence={pred['confidence']}")
         print(f"{'':10} truth    ={ground_truth.get(field.lower())!r}")
 
 

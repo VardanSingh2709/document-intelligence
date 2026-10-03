@@ -34,36 +34,47 @@ class LayoutLMExtractor:
         with torch.no_grad():
             outputs = self.model(**encoding)
 
-        predictions = outputs.logits.argmax(-1).squeeze().tolist()
+        probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+        predictions = probs.argmax(-1).squeeze().tolist()
+        confidences = probs.max(-1).values.squeeze().tolist()
         word_ids = encoding_cpu.word_ids(batch_index=0)
 
-        return self._reconstruct_fields(tokens, predictions, word_ids)
+        return self._reconstruct_fields(tokens, predictions, confidences, word_ids)
 
-    def _reconstruct_fields(self, tokens: list[str], predictions: list[int], word_ids: list) -> dict[str, str]:
+    def _reconstruct_fields(
+        self, tokens: list[str], predictions: list[int], confidences: list[float], word_ids: list
+    ) -> dict[str, dict]:
         """Walk through sub-token predictions, keep only the first sub-token's
-        prediction per word (matching how we trained), and group consecutive
-        same-field tokens back into field strings."""
-        word_predictions: dict[int, str] = {}
+        prediction per word, group consecutive same-field tokens into field
+        strings, and compute each field's confidence as the MINIMUM token
+        confidence in its span (a single weak/garbled token should pull the
+        whole field's confidence down — see Phase 8 write-up)."""
+        word_predictions: dict[int, tuple[str, float]] = {}
         seen_words = set()
-        for pred_id, word_id in zip(predictions, word_ids):
+        for pred_id, conf, word_id in zip(predictions, confidences, word_ids):
             if word_id is None or word_id in seen_words:
-                continue  # skip special tokens and subsequent sub-tokens of an already-seen word
+                continue
             seen_words.add(word_id)
-            word_predictions[word_id] = ID_TO_LABEL[pred_id]
+            word_predictions[word_id] = (ID_TO_LABEL[pred_id], conf)
 
-        fields: dict[str, list[str]] = {"COMPANY": [], "DATE": [], "ADDRESS": [], "TOTAL": []}
+        fields: dict[str, list[tuple[str, float]]] = {"COMPANY": [], "DATE": [], "ADDRESS": [], "TOTAL": []}
         for word_id in sorted(word_predictions):
-            label = word_predictions[word_id]
+            label, conf = word_predictions[word_id]
             if label == "O":
                 continue
-            field = label.split("-", 1)[1]  # "B-TOTAL" -> "TOTAL"
+            field = label.split("-", 1)[1]
             if field in fields:
-                fields[field].append(tokens[word_id])
+                fields[field].append((tokens[word_id], conf))
 
-        return {
-            field: _clean_field_text(" ".join(words)) if words else None
-            for field, words in fields.items()
-        }
+        result = {}
+        for field, word_conf_pairs in fields.items():
+            if not word_conf_pairs:
+                result[field] = {"value": None, "confidence": None}
+            else:
+                text = _clean_field_text(" ".join(w for w, _ in word_conf_pairs))
+                min_confidence = min(c for _, c in word_conf_pairs)
+                result[field] = {"value": text, "confidence": min_confidence}
+        return result
 
 
 def _clean_field_text(text: str) -> str:
