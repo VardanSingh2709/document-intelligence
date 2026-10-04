@@ -5,6 +5,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+import uuid
 
 DB_PATH = Path("data/review.db")
 
@@ -16,10 +17,20 @@ CREATE TABLE IF NOT EXISTS review_items (
     model_value TEXT,
     model_confidence REAL,
     fallback_value TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',   -- pending | accepted | edited | rejected
+    status TEXT NOT NULL DEFAULT 'pending',
     final_value TEXT,
     created_at TEXT NOT NULL,
     reviewed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'uploaded',
+    results_json TEXT,
+    created_at TEXT NOT NULL,
+    processed_at TEXT
 );
 """
 
@@ -41,7 +52,7 @@ def get_connection():
 
 def init_db() -> None:
     with get_connection() as conn:
-        conn.execute(SCHEMA)
+        conn.executescript(SCHEMA)
 
 
 def add_review_item(receipt_id: str, field: str, model_value: str | None,
@@ -77,4 +88,30 @@ def resolve_item(item_id: int, status: str, final_value: str) -> None:
         conn.execute(
             "UPDATE review_items SET status = ?, final_value = ?, reviewed_at = ? WHERE id = ?",
             (status, final_value, datetime.now(timezone.utc).isoformat(), item_id),
+        )
+
+
+def create_document(filename: str, file_path: str) -> str:
+    """Register a newly uploaded document. Returns its generated id."""
+    document_id = str(uuid.uuid4())
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO documents (id, filename, file_path, created_at) VALUES (?, ?, ?, ?)",
+            (document_id, filename, file_path, datetime.now(timezone.utc).isoformat()),
+        )
+    return document_id
+
+
+def get_document(document_id: str) -> dict | None:
+    with get_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def update_document_results(document_id: str, results_json: str, status: str) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE documents SET results_json = ?, status = ?, processed_at = ? WHERE id = ?",
+            (results_json, status, datetime.now(timezone.utc).isoformat(), document_id),
         )
