@@ -8,9 +8,10 @@ from app.extraction.routing import ALWAYS_ESCALATE_FIELDS, should_accept
 
 
 class HybridExtractor:
-    def __init__(self, model_extractor, llm_fallback: GroqFallback) -> None:
+    def __init__(self, model_extractor, llm_fallback: GroqFallback, on_needs_review=None) -> None:
         self.model_extractor = model_extractor
         self.llm_fallback = llm_fallback
+        self.on_needs_review = on_needs_review
 
     def extract(self, image_path: str, tokens: list[str], boxes: list[list[int]], ocr_text: str) -> dict:
         """Run LayoutLMv3, then escalate any low-confidence or always-escalate
@@ -39,11 +40,23 @@ class HybridExtractor:
                 llm_value = self.llm_fallback.extract_field(field, ocr_text)
                 fallback_time += time.perf_counter() - fb_start
 
-                final_results[field] = {
-                    "value": llm_value if llm_value is not None else pred["value"],
-                    "source": "llm_fallback" if llm_value is not None else "model_fallback_failed",
+                if llm_value is not None:
+                    final_results[field] = {
+                        "value": llm_value,
+                        "source": "llm_fallback",
+                        "confidence": pred["confidence"],
+                    }
+                else:
+                    final_results[field] = {
+                    "value": llm_value,
+                    "source": "llm_fallback",
+                    # Note: this is the ORIGINAL model's confidence (the reason
+                    # this field was escalated), not a confidence for the LLM's
+                    # answer — the LLM fallback doesn't produce its own score.
                     "confidence": pred["confidence"],
                 }
+                    if self.on_needs_review:
+                        self.on_needs_review(field, pred["value"], pred["confidence"], llm_value)
 
         return {
             "fields": final_results,
