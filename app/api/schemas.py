@@ -29,3 +29,9 @@ class DocumentStatusResponse(BaseModel):
     filename: str
     status: str
     fields: dict[str, FieldResult] | None = None
+
+
+class ReviewSubmission(BaseModel):
+    field: str
+    action: str  # "accept" | "edit" | "reject"
+    corrected_value: str | None = None

@@ -8,14 +8,14 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from PIL import Image
 
-from app.api.schemas import DocumentUploadResponse, DocumentStatusResponse, FieldResult, ProcessResponse
+from app.api.schemas import DocumentUploadResponse, DocumentStatusResponse, FieldResult, ProcessResponse, ReviewSubmission
 from app.extraction.hybrid_pipeline import HybridExtractor
 from app.extraction.layoutlm_dataset import normalize_box
 from app.extraction.layoutlm_inference import LayoutLMExtractor
 from app.extraction.llm_fallback import GroqFallback
 from app.extraction.ocr_to_tokens import ocr_result_to_tokens
 from app.ocr.paddle_engine import PaddleOCREngine
-from app.review.database import add_review_item, create_document, get_connection, get_document, init_db
+from app.review.database import add_review_item, create_document, get_connection, get_document, init_db, get_pending_items, resolve_item
 
 UPLOAD_DIR = Path("data/uploads")
 
@@ -40,12 +40,8 @@ def startup() -> None:
     model_extractor = LayoutLMExtractor()
     llm_fallback = GroqFallback()
 
-    def on_needs_review(field, model_value, confidence, fallback_value, document_id=None):
-        add_review_item(document_id or "unknown", field, model_value, confidence, fallback_value)
-
     _pipeline_components["ocr_engine"] = ocr_engine
     _pipeline_components["hybrid"] = HybridExtractor(model_extractor, llm_fallback, on_needs_review=None)
-    print("Pipeline ready.")
 
 
 @app.get("/health")
@@ -96,11 +92,12 @@ def process_document(document_id: str) -> ProcessResponse:
     boxes = [normalize_box(t.box, width, height) for t in tokens_with_boxes]
     ocr_text = " ".join(tokens)
 
-    result = hybrid.extract(image_path, tokens, boxes, ocr_text)
+    def on_needs_review(field, model_value, confidence, fallback_value):
+        add_review_item(document_id, field, model_value, confidence, fallback_value)
 
-    for field, data in result["fields"].items():
-        if data["source"] == "model_fallback_failed":
-            add_review_item(document_id, field, data["value"], data["confidence"], None)
+    hybrid.on_needs_review = on_needs_review  # bind this request's document_id for the callback
+    result = hybrid.extract(image_path, tokens, boxes, ocr_text)
+    hybrid.on_needs_review = None  # reset, since hybrid is a shared, reused instance across requests
 
     fields_out = {field: FieldResult(**data) for field, data in result["fields"].items()}
 
@@ -136,3 +133,22 @@ def get_results(document_id: str) -> DocumentStatusResponse:
         status=doc["status"],
         fields=fields_out,
     )
+
+
+@app.post("/documents/{document_id}/review")
+def submit_review(document_id: str, submission: ReviewSubmission) -> dict:
+    """Submit a human reviewer's decision for a field flagged during processing."""
+    if submission.action not in {"accept", "edit", "reject"}:
+        raise HTTPException(status_code=400, detail="action must be one of: accept, edit, reject")
+
+    pending = [item for item in get_pending_items()
+               if item["receipt_id"] == document_id and item["field"] == submission.field]
+    if not pending:
+        raise HTTPException(status_code=404, detail="No pending review item found for this document/field")
+
+    item = pending[0]
+    status_map = {"accept": "accepted", "edit": "edited", "reject": "rejected"}
+    final_value = submission.corrected_value if submission.action == "edit" else item["model_value"]
+
+    resolve_item(item["id"], status_map[submission.action], final_value)
+    return {"document_id": document_id, "field": submission.field, "status": status_map[submission.action], "final_value": final_value}
