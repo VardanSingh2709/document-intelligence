@@ -9,3 +9,23 @@ class DocumentUploadResponse(BaseModel):
     document_id: str
     filename: str
     status: str
+
+
+class FieldResult(BaseModel):
+    value: str | None
+    source: str
+    confidence: float | None
+
+
+class ProcessResponse(BaseModel):
+    document_id: str
+    status: str
+    fields: dict[str, FieldResult] | None = None
+    escalated_fields: list[str] | None = None
+
+
+class DocumentStatusResponse(BaseModel):
+    document_id: str
+    filename: str
+    status: str
+    fields: dict[str, FieldResult] | None = None
