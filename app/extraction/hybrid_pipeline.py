@@ -48,13 +48,13 @@ class HybridExtractor:
                     }
                 else:
                     final_results[field] = {
-                    "value": llm_value,
-                    "source": "llm_fallback",
-                    # Note: this is the ORIGINAL model's confidence (the reason
-                    # this field was escalated), not a confidence for the LLM's
-                    # answer — the LLM fallback doesn't produce its own score.
-                    "confidence": pred["confidence"],
-                }
+                        "value": pred["value"],
+                        "source": "model_fallback_failed",
+                        # This is the ORIGINAL model's confidence (the reason
+                        # this field was escalated), not a confidence for the
+                        # LLM's answer — the LLM fallback also failed here.
+                        "confidence": pred["confidence"],
+                    }
                     if self.on_needs_review:
                         self.on_needs_review(field, pred["value"], pred["confidence"], llm_value)
 
