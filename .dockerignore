@@ -1,0 +1,21 @@
+.venv/
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data: raw/processed datasets and uploads don't belong in the image
+data/raw/
+data/processed/
+data/uploads/
+data/_staging/
+data/review.db
+
+# Keep models/ OUT of this ignore list — we need it (Option A, Phase 15 decision)
+
+# Docs and dev-only files not needed at runtime
+evaluation/
+*.md
+.env

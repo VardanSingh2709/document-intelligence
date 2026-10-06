@@ -4,7 +4,6 @@ setuptools  # required by paddlepaddle on Python 3.12+; not bundled in venv by d
 jiwer==3.0.4
 pytesseract==0.3.13
 
---index-url https://download.pytorch.org/whl/cu121
 torch
 transformers==4.46.3
 datasets==3.1.0
