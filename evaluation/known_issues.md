@@ -34,3 +34,15 @@ isolating the failure cleanly to OCR, not to extraction logic.
 **Status:** confirmed, root-caused. A genuine limitation of word-level OCR
 on dense, unlabeled timestamp/date clusters — connects directly to the
 Phase 7/8 finding that DATE is disproportionately OCR-fragile.
+
+## 4. (Fixed) model_fallback_failed branch mislabeled its source
+A copy/paste error in hybrid_pipeline.py's else-branch (both model and LLM
+failed) incorrectly set source="llm_fallback" instead of
+"model_fallback_failed", and discarded the model's last-attempt value in
+favor of a guaranteed-null llm_value. This caused the frontend's "needs
+review, editable" UI path to never trigger, even when the backend
+correctly identified the field as needing review (confirmed via the
+review-queue database, which was unaffected — only the API response label
+was wrong). Found via direct comparison of isolated extract_field() calls
+(worked correctly) against the full pipeline (showed wrong labels), and
+fixed by correcting the else-branch's dict construction.
