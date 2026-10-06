@@ -46,3 +46,14 @@ review-queue database, which was unaffected — only the API response label
 was wrong). Found via direct comparison of isolated extract_field() calls
 (worked correctly) against the full pipeline (showed wrong labels), and
 fixed by correcting the else-branch's dict construction.
+
+## 5. (Fixed) .env quotes broke Docker's --env-file parsing
+Local development used python-dotenv, which automatically strips quote
+characters from .env values. Docker's --env-file flag does not — it passes
+the literal value, quotes included. GROQ_API_KEY="actual_key" worked fine
+locally but caused Groq API calls to fail with 401 Invalid API Key inside
+the container, since the key string included literal quote marks. Found by
+directly inspecting the environment variable inside a throwaway container
+(docker run ... python -c "..."), comparing its value against the raw .env
+file content. Fixed by removing quotes from .env; python-dotenv handles the
+unquoted value identically, so this did not break local runs.
