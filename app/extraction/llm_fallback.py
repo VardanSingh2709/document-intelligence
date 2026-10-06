@@ -53,9 +53,11 @@ If you cannot determine this field with reasonable confidence, respond with:
         raw_output = response.choices[0].message.content.strip()
         return self._parse_response(raw_output)
 
+
     def _parse_response(self, raw_output: str) -> str | None:
-        """Parse the model's JSON response defensively — LLMs sometimes wrap
-        JSON in markdown code fences or add stray text despite instructions."""
+        """Parse the model's JSON response defensively. Treats both JSON null
+        and empty/whitespace-only strings as 'no value' — some models return
+        an empty string rather than null when they can't determine a field."""
         text = raw_output.strip()
         if text.startswith("```"):
             text = text.strip("`")
@@ -63,6 +65,9 @@ If you cannot determine this field with reasonable confidence, respond with:
 
         try:
             parsed = json.loads(text)
-            return parsed.get("value")
+            value = parsed.get("value")
+            if value is None or (isinstance(value, str) and not value.strip()):
+                return None
+            return value
         except (json.JSONDecodeError, AttributeError):
             return None
