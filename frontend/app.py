@@ -51,7 +51,30 @@ if "results" in st.session_state:
         confidence_text = f"{data['confidence']:.1%}" if data["confidence"] is not None else "N/A"
 
         col1, col2 = st.columns([3, 2])
-        with col1:
-            st.text_input(field, value=data["value"] or "(not found)", key=f"display_{field}", disabled=True)
-        with col2:
-            st.caption(f"{source_label} · confidence: {confidence_text}")
+
+        if data["source"] == "model_fallback_failed":
+            with col1:
+                corrected = st.text_input(
+                    f"{field} (needs review)",
+                    value=data["value"] or "",
+                    placeholder="Enter the correct value",
+                    key=f"edit_{field}",
+                )
+            with col2:
+                st.caption(f"🔴 Needs review · model/fallback both failed")
+                if st.button("Submit correction", key=f"submit_{field}"):
+                    review_response = requests.post(
+                        f"{API_BASE}/documents/{st.session_state['document_id']}/review",
+                        json={"field": field, "action": "edit", "corrected_value": corrected},
+                    )
+                    if review_response.status_code == 200:
+                        st.success(f"Saved: {field} = {corrected!r}")
+                        results["fields"][field]["value"] = corrected
+                        results["fields"][field]["source"] = "human_reviewed"
+                    else:
+                        st.error(f"Failed to save: {review_response.text}")
+        else:
+            with col1:
+                st.text_input(field, value=data["value"] or "(not found)", key=f"display_{field}", disabled=True)
+            with col2:
+                st.caption(f"{source_label} · confidence: {confidence_text}")
