@@ -12,23 +12,24 @@ file that produced it.
 
 ## What it does
 
+\`\`\`
 Receipt image
-│
-▼
-OCR (PaddleOCR)
-│
-▼
+     │
+     ▼
+   OCR (PaddleOCR)
+     │
+     ▼
 LayoutLMv3 (fine-tuned, token classification)
-│
-▼
+     │
+     ▼
 Confidence-based routing ──► high confidence ──► accept
-│
-▼ low confidence / DATE (always)
+     │
+     ▼ low confidence / DATE (always)
 LLM fallback (Groq, Llama-family model)
-│
-▼ still unresolved
+     │
+     ▼ still unresolved
 Human review queue (SQLite + CLI/web UI)
-
+\`\`\`
 
 Try it: upload a receipt through the Streamlit UI, watch it get OCR'd,
 classified, and (if needed) escalated to an LLM or flagged for you to
