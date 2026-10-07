@@ -57,3 +57,13 @@ directly inspecting the environment variable inside a throwaway container
 (docker run ... python -c "..."), comparing its value against the raw .env
 file content. Fixed by removing quotes from .env; python-dotenv handles the
 unquoted value identically, so this did not break local runs.
+
+## 6. Docker build is verified manually, not in CI
+The Dockerfile bakes the trained model (models/) into the image (a
+deliberate Phase 15 decision). Since models/ is gitignored (correctly —
+it's a large, non-source artifact), GitHub Actions' clean checkout has no
+access to it, so a full `docker build` cannot succeed in CI without
+additional infrastructure (e.g., pulling the model from Hugging Face Hub
+at build time — the "Option C" alternative noted in Phase 15). For this
+project's scope, the Docker image is built and run manually, with results
+documented in Phase 15's notes; CI covers the test suite only.

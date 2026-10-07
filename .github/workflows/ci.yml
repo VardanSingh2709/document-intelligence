@@ -27,13 +27,3 @@ jobs:
         env:
           GROQ_API_KEY: "dummy-key-for-ci"
         run: python -m pytest tests/ -v
-
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -t document-intelligence-api:ci-test .
