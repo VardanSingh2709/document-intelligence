@@ -12,24 +12,24 @@ file that produced it.
 
 ## What it does
 
+```
 Receipt image
-|
-v
-OCR (PaddleOCR)
-|
-v
+     |
+     v
+   OCR (PaddleOCR)
+     |
+     v
 LayoutLMv3 (fine-tuned, token classification)
-|
-v
+     |
+     v
 Confidence-based routing --> high confidence --> accept
-|
-v
-low confidence / DATE (always)
+     |
+     v low confidence / DATE (always)
 LLM fallback (Groq, Llama-family model)
-|
-v
-still unresolved
+     |
+     v still unresolved
 Human review queue (SQLite + CLI/web UI)
+```
 
 Try it: upload a receipt through the Streamlit UI, watch it get OCR'd,
 classified, and (if needed) escalated to an LLM or flagged for you to
@@ -121,8 +121,8 @@ cp .env.example .env                 # then add your GROQ_API_KEY
 ```
 
 You'll also need the trained model in `models/layoutlmv3_receipts/` (not
-included in this repo due to size — see [training instructions](#training-from-scratch)
-below to produce it yourself).
+included in this repo due to size — see training instructions below to
+produce it yourself).
 
 **Run the API:**
 ```bash
@@ -152,23 +152,25 @@ docker run -p 8000:8000 --env-file .env document-intelligence-api
 2. Build the BIO-labeled dataset: `python -m scripts.build_bio_dataset`
 3. Train: `python -m scripts.train_layoutlm` (expects a CUDA GPU; ~25 min
    on an RTX 4050, 6GB VRAM)
-4. Evaluate: `python -m scripts.evaluate_layoutlm` /
-   `python -m scripts.evaluate_end_to_end` /
+4. Evaluate: `python -m scripts.evaluate_layoutlm`,
+   `python -m scripts.evaluate_end_to_end`, or
    `python -m scripts.evaluate_hybrid`
 
 ## Project structure
 
+```
 app/
-api/ FastAPI endpoints
-extraction/ OCR→tokens, BIO labeling, model inference, routing, LLM fallback
-ocr/ Swappable OCR engine interface (PaddleOCR, Tesseract)
-review/ SQLite-backed human review queue
-schemas/ Shared data shapes
-frontend/ Streamlit UI
-scripts/ Data prep, training, evaluation (how every result was produced)
-tests/ pytest suite
-evaluation/ Every measured result, phase by phase, with methodology
-data/ Dataset docs (data itself is gitignored — see data/README.md)
+  api/           FastAPI endpoints
+  extraction/    OCR to tokens, BIO labeling, model inference, routing, LLM fallback
+  ocr/           Swappable OCR engine interface (PaddleOCR, Tesseract)
+  review/        SQLite-backed human review queue
+  schemas/       Shared data shapes
+frontend/        Streamlit UI
+scripts/         Data prep, training, evaluation (how every result was produced)
+tests/           pytest suite
+evaluation/      Every measured result, phase by phase, with methodology
+data/            Dataset docs (data itself is gitignored - see data/README.md)
+```
 
 ## What I'd do next with more time
 
